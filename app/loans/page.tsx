@@ -1,2 +1,145 @@
-'use client';import { AppShell } from '@/components/AppShell';import { useEffect,useState } from 'react';import { toast } from '@/components/Toast';
-export default function Loans(){const[loans,setLoans]=useState<any[]>([]);const[f,setF]=useState({name:'Ипотекийн зээл',amount:'',interestRate:'',monthlyPayment:'',remainingBalance:'',dueDay:'1'});const load=()=>fetch('/api/loans').then(r=>r.json()).then(x=>setLoans(Array.isArray(x)?x:[]));useEffect(load,[]);const submit=async(e:any)=>{e.preventDefault();await fetch('/api/loans',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:f.name,amount:+f.amount,interestRate:+f.interestRate,monthlyPayment:+f.monthlyPayment,remainingBalance:+f.remainingBalance,dueDay:+f.dueDay})});toast('Зээл нэмэгдлээ ✅');load()};return <AppShell><div className="grid gap-6 lg:grid-cols-3"><form onSubmit={submit} className="card space-y-3"><h1 className="text-2xl font-black">🏦 Зээл нэмэх</h1>{Object.entries(f).map(([k,v])=><input key={k} className="input" placeholder={k} value={v} type={k==='name'?'text':'number'} onChange={e=>setF({...f,[k]:e.target.value})}/>) }<button className="btn w-full bg-indigo-600 text-white">Хадгалах</button></form><div className="card lg:col-span-2"><h2 className="mb-4 text-xl font-bold">⏰ Төлөлтийн хуваарь</h2><div className="grid gap-3">{loans.map(l=><div key={l.id} className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950"><div className="flex justify-between"><b>{l.name}</b><span>Сар бүрийн {l.dueDay}</span></div><p className="text-slate-500">Үлдэгдэл: {Number(l.remainingBalance).toLocaleString('mn-MN')} ₮ • Сарын төлөлт: {Number(l.monthlyPayment).toLocaleString('mn-MN')} ₮ • Хүү: {l.interestRate}%</p></div>)}</div></div></div></AppShell>}
+'use client';
+
+import { AppShell } from '@/components/AppShell';
+import { useEffect, useState } from 'react';
+import { toast } from 'react-hot-toast';
+
+export default function Loans() {
+  const [loans, setLoans] = useState<any[]>([]);
+  const [f, setF] = useState({
+    name: 'Ипотекийн зээл',
+    principal: '',
+    annualRate: '',
+    months: '',
+    startDate: '',
+  });
+
+  const loadLoans = async () => {
+    try {
+      const res = await fetch('/api/loans');
+      const data = await res.json();
+      setLoans(data);
+    } catch (error) {
+      console.error(error);
+      toast.error('Зээл ачааллахад алдаа гарлаа');
+    }
+  };
+
+  // ⚠️ Vercel build error зассан useEffect
+  useEffect(() => {
+    loadLoans();
+  }, []);
+
+  const createLoan = async () => {
+    try {
+      const res = await fetch('/api/loans', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...f,
+          principal: Number(f.principal),
+          annualRate: Number(f.annualRate),
+          months: Number(f.months),
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed');
+      }
+
+      toast.success('Зээл амжилттай нэмэгдлээ');
+      setF({
+        name: 'Ипотекийн зээл',
+        principal: '',
+        annualRate: '',
+        months: '',
+        startDate: '',
+      });
+      loadLoans();
+    } catch (error) {
+      console.error(error);
+      toast.error('Зээл нэмэхэд алдаа гарлаа');
+    }
+  };
+
+  return (
+    <AppShell>
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">🏠 Зээлийн тооцоолуур</h1>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-6 rounded-2xl shadow">
+          <input
+            className="border rounded-lg p-3"
+            placeholder="Зээлийн нэр"
+            value={f.name}
+            onChange={(e) => setF({ ...f, name: e.target.value })}
+          />
+
+          <input
+            className="border rounded-lg p-3"
+            placeholder="Үндсэн дүн"
+            value={f.principal}
+            onChange={(e) => setF({ ...f, principal: e.target.value })}
+          />
+
+          <input
+            className="border rounded-lg p-3"
+            placeholder="Жилийн хүү (%)"
+            value={f.annualRate}
+            onChange={(e) => setF({ ...f, annualRate: e.target.value })}
+          />
+
+          <input
+            className="border rounded-lg p-3"
+            placeholder="Хугацаа (сар)"
+            value={f.months}
+            onChange={(e) => setF({ ...f, months: e.target.value })}
+          />
+
+          <input
+            type="date"
+            className="border rounded-lg p-3"
+            value={f.startDate}
+            onChange={(e) => setF({ ...f, startDate: e.target.value })}
+          />
+
+          <button
+            onClick={createLoan}
+            className="bg-blue-600 text-white rounded-lg px-4 py-3 hover:bg-blue-700"
+          >
+            ➕ Зээл нэмэх
+          </button>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">📋 Миний зээлүүд</h2>
+
+          {loans.length === 0 ? (
+            <p className="text-gray-500">Одоогоор зээл бүртгэгдээгүй байна.</p>
+          ) : (
+            <div className="space-y-3">
+              {loans.map((loan) => (
+                <div
+                  key={loan.id}
+                  className="border rounded-lg p-4 flex justify-between items-center"
+                >
+                  <div>
+                    <p className="font-semibold">{loan.name}</p>
+                    <p className="text-sm text-gray-500">
+                      {loan.principal?.toLocaleString()} ₮
+                    </p>
+                  </div>
+                  <div className="text-right text-sm text-gray-500">
+                    {loan.annualRate}% / {loan.months} сар
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </AppShell>
+  );
+}
